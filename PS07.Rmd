@@ -1,6 +1,6 @@
 ---
 title: "STAT/MATH 495: Problem Set 07"
-author: "WRITE YOUR NAME(S) HERE"
+author: "Syed Abbas Shah"
 date: "2017-10-24"
 output:
   html_document:
@@ -22,6 +22,7 @@ set.seed(76)
 library(tidyverse)
 library(broom)
 library(knitr)
+library(mosaic)
 
 train <- read_csv("data/cs-training.csv") %>% 
   rename(Id = X1)
@@ -38,6 +39,21 @@ Information on the competition can be found [here](https://www.kaggle.com/c/Give
 
 Please indicate who you collaborated with on this assignment: 
 
+No one.
+
+#Exploratory analysis:
+
+First, let's look at the response variable:
+```{r}
+
+```
+
+Now we can see how the response variable relates to some of the covariates of interest.
+```{r}
+
+ggplot(data=train, aes(x=age, y=SeriousDlqin2yrs)) + geom_boxplot()
+ggplot(data=train, x)
+```
 
 
 # Build binary classifier
