@@ -24,7 +24,7 @@ library(broom)
 library(knitr)
 library(mosaic)
 library(ROCR)
-
+library(gridExtra)
 train <- read_csv("data/cs-training.csv") %>% 
   rename(Id = X1)
 test <- read_csv("data/cs-test.csv") %>% 
@@ -44,43 +44,64 @@ No one.
 
 #Exploratory analysis:
 
+I will use 'Serious Delinquency' as short for the response variable, "Person experienced 90 days past due delinquency or worse".
 First, let's look at the response variable:
-```{r}
-prop.table(table(train$SeriousDlqin2yrs))
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+a<-prop.table(table(train$SeriousDlqin2yrs))
+train$y <- ifelse(train$SeriousDlqin2yrs==0,"No","Yes") #Converting from 0/1 to yes/no 
+ggplot(train, aes(x=train$y, fill=y)) + geom_bar() + labs(title = "Looking at the distribution of our response variable", x = "Serious Delinquency")
+a
 ```
+
 The vast majority of people in the dataset did not suffer from Serious Delinquency. Only about 6.7% of the people included did.
 
 Now we can see how the response variable relates to some of the covariates of interest.
-```{r EDA Age, message=FALSE, warning=FALSE}
+
+###Age:
+```{r EDA Age, echo=FALSE, message=FALSE, warning=FALSE}
 train$age1 <- cut(train$age, breaks=c(25,30,35,40,45,50,55,60,65,70,75,80,85,90,100 ))
 table1<-table(train$age1,train$SeriousDlqin2yrs)
 x<-prop.table(table1,1)
-kable(x, format="html", caption = "Percentages of Serious Delinquency in different Age groups")
-plot(x)
+p1<- ggplot(train, aes(x=age1, fill=train$y)) + geom_bar()  + labs(title="Serious Delinquency in different age groups", x= "Age Groups", y="Counts of Delinquency") +  scale_fill_discrete(name="Serious Delinquency")
+p2<-ggplot(train, aes(x=as.factor(SeriousDlqin2yrs), y= age)) + geom_boxplot() + labs(title="Age ~ Serious Delinquency", x="Serious Delinquency", y="Age") 
+p1
+p2
 ```
-There seems to be a pattern here. The risk of serious delinquency seems to be declining as age increases. 
+
+There seems to be a pattern here. The risk of serious delinquency seems to be declining as age increases. The difference in the medians as demonstrated by the boxplots appears to be reasonably significant, particularly compared to the other predictors. 
 
 
-
+###Monthly Income:
 ```{r EDA monthly income, echo=FALSE, message=FALSE, warning=FALSE}
-train$mincome1 <- cut(train$MonthlyIncome, breaks=c(0,2500,5000,7500,10000,150000,100000,3100000))
+train$mincome1 <- cut(train$MonthlyIncome, breaks=c(0,2500,5000,7500,10000,15000,3100000))
 table1<-table(train$mincome1,train$SeriousDlqin2yrs)
 x<-prop.table(table1,1)
-kable(x, format="html", caption = "Percentages of Serious Delinquency in different Income groups")
-plot(x)
-```
-Similarly, the incidents of Serious Delinquency decrease as Monthly Income increases.
+p1<- ggplot(train, aes(x=mincome1, fill=train$y)) + geom_bar()  + labs(title="Serious Delinquency in different Income Groups", x= "Income Groups", y="Counts of Delinquency") +  scale_fill_discrete(name="Serious Delinquency")
+p2<-ggplot(train, aes(x=as.factor(SeriousDlqin2yrs), y= log(MonthlyIncome))) + geom_boxplot() + labs(title="Log Monthly Income ~ Serious Delinquency", x="Serious Delinquency", y="Log Monthly Income")
 
+p1
+p2
+```
+
+Similarly, the incidents of Serious Delinquency decrease as Monthly Income increases. The difference between the median Log monthly income in the two categories, as shown by the boxplots, appears to be less pronounced here than in the age plot.
+
+###Debt Ratio:
+
+Finally, Let's Look at Debt Ratio.
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 train$dratio1 <- cut(train$DebtRatio, breaks=c(0,.15,.3,.45,.6,.75,1,100,350000))
 table1<-table(train$dratio1,train$SeriousDlqin2yrs)
 x<-prop.table(table1,1)
-kable(x, format="html", caption = "Percentages of Serious Delinquency in different Age groups")
-plot(x)
+p1<- ggplot(train, aes(x=dratio1, fill=train$y)) + geom_bar()  + labs(title="Serious Delinquency in different Debt Ratio Groups", x= "Debt Ratio Groups", y="Counts of Delinquency") +  scale_fill_discrete(name="Serious Delinquency")
+p2<-ggplot(train, aes(x=as.factor(SeriousDlqin2yrs), y= log(DebtRatio))) + geom_boxplot() + labs(title="Log Debt Ratio ~ Serious Delinquency", x="Serious Delinquency", y="Log Debt Ratio")
+
+p1
+p2
 ```
 
-The incidents of Serious Delinquents seem to increase for higher values of debt ratio, but decrease again in the right-most categories.
+The incidents of Serious Delinquents seem to increase for higher values of debt ratio, but decrease again in the right-most categories. The pattern is less clear here than the age and monthly income plots.
 
 
 # Build binary classifier
@@ -88,16 +109,15 @@ The incidents of Serious Delinquents seem to increase for higher values of debt 
 I'm going to stick with Age as the predictor because the pattern was the most clearly discernable in my Exploratory Data Analysis.
 
 
-```{r}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 model_formula <- as.formula(SeriousDlqin2yrs~age)
 model_logistic <- glm(model_formula, data=train, family="binomial")
-
 model_logistic %>% 
   broom::tidy(conf.int=TRUE)
 ```
 
 
-```{r, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 fitted_model <- model_logistic %>% 
   broom::augment() %>% 
   as_tibble() %>% 
@@ -114,7 +134,7 @@ ggplot(NULL) +
 
 
 
-```{r, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 x<-ggplot(NULL) +
   geom_jitter(data=fitted_model, aes(x=age, y=SeriousDlqin2yrs), height=0.1, alpha=0.05) +
   geom_line(data=fitted_model, aes(x=age, y=p_hat), col="blue") +
@@ -126,11 +146,11 @@ x
 
 
 
-# ROC curves for Model + Random guessing:
+# ROC curve for Model:
 
-Based on the ultimate classifier you choose, plot a corresponding ROC curve.
+Here, I'm going to plot an ROC curve for my logistic model (with age as the sole predictor).
 
-```{r, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 profiles_train_augmented <- model_logistic %>% 
   broom::augment() %>% 
   as_tibble() %>% 
@@ -144,7 +164,24 @@ abline(c(0, 1), lty=2)
 ```
 
 
-The dark line shows the area under the curve for our model, whereas the diagonal line represents the model which guesses randomly (50-50%). We can see that our model is slightly better than guessing randomly.
+The dark line shows the area under the curve for our model, which is 0.635. Let's compare this to a model where we would randomly guess Serious Delinquency.
+
+# ROC curve for Random guessing:
+
+```{r}
+random1 <- rbinom(150000, 1,.5)
+pred <- prediction(predictions = random1, labels=profiles_train_augmented$SeriousDlqin2yrs)
+perf <- performance(pred, "tpr","fpr")
+auc <- as.numeric(performance(pred,"auc")@y.values)
+auc
+plot(perf, main=paste("Area Under the Curve =", round(auc, 3)))
+abline(c(0, 1), lty=2)
+```
+
+
+The diagonal line represents the model which guesses randomly (50-50%). We can see that our model is better than guessing randomly, with an AUC of 0.635 compared to 0.5 for the random one.
+
+
 
 
 
